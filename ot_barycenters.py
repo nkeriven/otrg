@@ -98,7 +98,7 @@ for (i,ti) in enumerate(np.linspace(0,1,int(size/1.5))):
                                n_iter=1000, same_space=False)
         frames.append(plot_(G, X, n, dist, bary, weights, colors, i, jj))
 
-gif.save(frames, 'bary.gif', duration=100)
+gif.save(frames, 'bary.gif', duration=150)
 
 
 

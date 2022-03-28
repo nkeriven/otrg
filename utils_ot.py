@@ -249,27 +249,28 @@ def barycenters(C, distribs, weights, epsilon=.1, n_iter=100,
     for s in distribs:
         g[s] = torch.zeros(len(distribs[s]), device=device)
 
-        ldist = dict()
-        for s in distribs: ldist[s] = torch.log(distribs[s])
-        if K is None:
-            if same_space:
-                lK = -C/epsilon
-                K = torch.exp(lK)
-            else:
-                lK, K = dict(), dict()
-                for s in distribs:
-                    lK[s] = -C[s]/epsilon
-                    K[s] = torch.exp(lK[s])
+    ldist = dict()
+    for s in distribs:
+        ldist[s] = torch.log(distribs[s])
+    if K is None:
+        if same_space:
+            lK = -C/epsilon
+            K = torch.exp(lK)
         else:
-            print('todo')
-        for i in range(n_iter):
-            la = 0
+            lK, K = dict(), dict()
             for s in distribs:
-                lKK = lK if same_space else lK[s]
-                f[s] = - torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
-                la += weights[s]*torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
-            for s in distribs:
-                lKK = lK if same_space else lK[s]
-                g[s] = - torch.logsumexp(lKK + (f[s]+la)[:,None], axis=0)
+                lK[s] = -C[s]/epsilon
+                K[s] = torch.exp(lK[s])
+    else:
+        print('todo')
+    for i in range(n_iter):
+        la = 0
+        for s in distribs:
+            lKK = lK if same_space else lK[s]
+            f[s] = - torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
+            la += weights[s]*torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
+        for s in distribs:
+            lKK = lK if same_space else lK[s]
+            g[s] = - torch.logsumexp(lKK + (f[s]+la)[:,None], axis=0)
 
     return torch.exp(la)
