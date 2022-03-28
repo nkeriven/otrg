@@ -18,30 +18,20 @@ plt.rcParams.update(rc_fonts)
 
 # which experiment to perform
 # Illustrate the convergence of the shortest paths on the sphere
-illustration_conv_SP = False
+illustration_conv_SP = True
 # Illustrate a transport plan on the sphere
 illustration_OT_sphere = True
 # Compute the convergence curves. Can be quite long
 curve_conv_wrt_n = False
 
 n_test = 5 # number of experiments to average over
-savefig = True # do I save the figures?
-
-# data distrib
-def normalize(X):
-    X = X/np.sqrt((X**2).sum(axis=1))[:,None]
-    return X
-
-def generate_sphere(n):
-    """Non-uniform distrib on the sphere"""
-    X = normalize(np.random.randn(n,3)+np.array([.3,0,0])[None,:])
-    return X
+savefig = False # do I save the figures?
 
 #%% Fig 4.1 (top)
 
 if illustration_conv_SP:
     for n in [200, 500, 6000]:
-        X = generate_sphere(n)
+        X = uot.generate_sphere(n)
 
         # two fixed points
         X[-2,:] = [1,0,0]
@@ -79,10 +69,10 @@ if illustration_OT_sphere or curve_conv_wrt_n:
     epsilon, bw = .01, .2
     # points
     dist_size = 50
-    Y1 = normalize(.4*(2*np.random.rand(dist_size, 3)-1) + np.array([1,0,0])[None,:])
+    Y1 = uot.normalize(.4*(2*np.random.rand(dist_size, 3)-1) + np.array([1,0,0])[None,:])
     Y2 = np.zeros((dist_size, 3))
-    Y2[:, 1:3] = normalize(2*np.random.rand(dist_size, 2)-1)
-    Y2 = normalize(Y2 + np.array([.5,0,0])[None,:])
+    Y2[:, 1:3] = uot.normalize(2*np.random.rand(dist_size, 2)-1)
+    Y2 = uot.normalize(Y2 + np.array([.5,0,0])[None,:])
     # unif distrib
     alpha = torch.ones(dist_size, device=device, dtype=torch.float64)/dist_size
     beta = torch.ones(dist_size, device=device, dtype=torch.float64)/dist_size
@@ -95,7 +85,7 @@ if illustration_OT_sphere or curve_conv_wrt_n:
 
 if illustration_OT_sphere:
     ndraw=1000
-    X = generate_sphere(ndraw)
+    X = uot.generate_sphere(ndraw)
     h = ndraw**(-1/4)
     G, h = uot.connected_eps_graph(X)
 
@@ -122,7 +112,7 @@ if curve_conv_wrt_n:
     for n_, n in enumerate(ns):
         for t_ in range(n_test):
             print(f'Graph size {n_+1}/{len(ns)}, num test {t_+1}/{n_test}')
-            X = generate_sphere(n)
+            X = uot.generate_sphere(n)
             X = np.concatenate((Y1,Y2,X), axis=0)
             eps = n**(-1/3)
             G = uot.random_graph_similarity(X, mode='epsilon_graph', bandwidth=eps)

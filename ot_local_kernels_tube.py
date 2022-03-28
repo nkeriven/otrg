@@ -11,9 +11,6 @@ import matplotlib.pyplot as plt
 import utils_ot as uot
 import torch
 
-from scipy import stats
-from scipy.integrate import quad
-
 import gif
 
 # init
@@ -35,32 +32,6 @@ illustrate_gif_OT_plan = illustrate_conv_SP and True
 # do I save the figures?
 savefig = True
 
-n_test = 3 # number of experiments to average over
-
-#%% data utils
-
-def pdf(x, symmetric=False):
-    return (x**2+.2)/1.2
-
-class my_distribution(stats.rv_continuous):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # integrate area of the PDF in range a..b
-        self.scale, _ = quad(lambda x: pdf(x), self.a, self.b)
-
-    def _pdf(self, x):
-        # scale PDF so that it integrates to 1 in range a..b
-        return pdf(x) / self.scale
-
-distribution = my_distribution(a=-1, b=1)
-
-def data(n):
-    X = 2*np.random.rand(n,2)-1
-    X[:,0] = distribution.rvs(size=n)
-    X[:,1] *= (X[:,0]**2+.2)/1.2
-    return X
-
 #%% conv TP
 
 epsilon = .05
@@ -74,7 +45,7 @@ beta /= beta.sum()
 if illustrate_conv_SP:
     for n in [300, 1000, 3000]:
         # data
-        X = data(n)
+        X = uot.tube_data(n)
         X[:nn, 0] = -1
         X[:nn, 1] = posA
         X[nn:2*nn, 0] = 1
@@ -82,8 +53,6 @@ if illustrate_conv_SP:
 
         # graph
         G, h = uot.connected_eps_graph(X)
-
-
 
         C = torch.zeros((nn,nn), device=device, dtype=torch.float64)
         p = dict()
@@ -135,8 +104,6 @@ if illustrate_gif_OT_plan:
         for i in range(nn):
             for j in range(nn):
                 pp = p[i][nn+j]
-                # gdraw.my_draw(G.subgraph(pp), pos=X, edge_color='g',width=100*P[i,j].item(),
-                #               node_size=0, alpha=1, ax=ax)
                 node = pp[int(t*(len(pp)-1))]
                 if node in t_plan:
                     t_plan[node] += P[i,j]
