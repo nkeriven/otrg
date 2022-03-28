@@ -244,16 +244,11 @@ def barycenters(C, distribs, weights, epsilon=.1, n_iter=100,
         If same_space, matrix C/K of size (N,N) and all distribs of size (N,).
         Else, C/K dict of matrices of size (N,N_s) and distribs of size (N_s,)
     """
-    # if g_init is None:
-    #     g = torch.zeros(len(beta), device=device)
-    # else:
-    #     g = g_init
 
     f, g = dict(), dict()
     for s in distribs:
         g[s] = torch.zeros(len(distribs[s]), device=device)
 
-    if dolog: # in the log domain
         ldist = dict()
         for s in distribs: ldist[s] = torch.log(distribs[s])
         if K is None:
@@ -271,30 +266,10 @@ def barycenters(C, distribs, weights, epsilon=.1, n_iter=100,
             la = 0
             for s in distribs:
                 lKK = lK if same_space else lK[s]
-                # print(lKK.shape, g[s].shape, ldist[s].shape)
                 f[s] = - torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
                 la += weights[s]*torch.logsumexp(lKK + (g[s]+ldist[s])[None,:], axis=1)
             for s in distribs:
                 lKK = lK if same_space else lK[s]
                 g[s] = - torch.logsumexp(lKK + (f[s]+la)[:,None], axis=0)
-            # if eta is not None:
-            #     c = torch.log(eta)
-            #     f = cutoff(f, vmax=c, vmin=-c)
-            #     g = cutoff(g, vmax=c, vmin=-c)
-        # P = torch.exp((f+la)[:,None]+lK+(g+lb)[None,:])
-    else:
-        print('todo')
-        # if K is None:
-        #     K = torch.exp(-C/epsilon)
-        # for i in range(n_iter):
-        #     f = - torch.log(K@(torch.exp(g)*beta))
-        #     g = - torch.log(K.t()@(torch.exp(f)*alpha))
-        #     if eta is not None:
-        #         c = np.log(eta)
-        #         f = cutoff(f, vmax=c, vmin=-c)
-        #         g = cutoff(g, vmax=c, vmin=-c)
-        # P = (torch.exp(f)*alpha)[:,None]*K*(torch.exp(g)*beta)[None,:]
-    # f *= epsilon
-    # g *= epsilon
-    # cost = cost_fun(f.cpu(), g.cpu(), alpha.cpu(), beta.cpu(), K.cpu(), epsilon=epsilon)
+
     return torch.exp(la)
