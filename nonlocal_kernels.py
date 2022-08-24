@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import torch
-#from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist
 
 import utils.ot as uot
 import utils.plot as uplt
@@ -15,8 +15,8 @@ np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 # which experiment to perform
-illustrate_usvt = True # single usvt illustration
-stability_gamma = True # stability curve, quite long
+illustrate_usvt = False # single usvt illustration
+stability_gamma = False # stability curve, quite long
 conv_curves = True # convergence curve, quite long
 
 # do I save the figures?
@@ -167,15 +167,15 @@ if conv_curves:
         for t_ in range(n_test):
             alpha = torch.ones(n, device=device, dtype=torch.float64)/n
             beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
-            X = generate_two_circles(n)
-            G, W = uot.random_graph_similarity(X, rho = 1, mode='Gaussian',
+            X = udata.generate_two_circles(n)
+            G, W = udata.random_graph_similarity(X, rho = 1, mode='Gaussian',
                                                bandwidth=sigma, return_expected=True)
             C = torch.tensor(np.ones((n, 2*n)) - W[:n, n:], device=device)
             P, _, _, tc = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
             for r_, rho in enumerate([1, 1/n**(1/6), 1/n**(1/3)]):
                 print(f'Graph size {n_+1}/{len(ns)}, Num test {t_+1}/{n_test}, Sparsity {r_+1}/3')
 
-                G, W = uot.random_graph_similarity(X, rho = rho, mode='Gaussian',
+                G, W = udata.random_graph_similarity(X, rho = rho, mode='Gaussian',
                                                    bandwidth=sigma, return_expected=True)
                 W /= rho
                 A = torch.tensor(nx.to_numpy_array(G), device=device)
@@ -199,21 +199,17 @@ if conv_curves:
 
     for n_, n in enumerate(ns):
         for t_ in range(n_test):
-            alpha = torch.ones(n, device=device, dtype=torch.float64)/n
-            beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
-            X = generate_two_circles(n)
+            X = udata.generate_two_circles(n)
             C = torch.tensor(cdist(X[:n,:], X[n:,:], 'sqeuclidean'), device=device)
-            P, _, _, tc = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
+            P, _, _, tc = uot.sinkhorn_dual(C, epsilon=epsilon, device=device)
             for r_, rho in enumerate([1, 1/n**(1/6), 1/n**(1/3)]):
                 print(f'Graph size {n_+1}/{len(ns)}, Num test {t_+1}/{n_test}, Sparsity {r_+1}/3')
-                alpha = torch.ones(n, device=device, dtype=torch.float64)/n
-                beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
-                X = generate_two_circles(n)
+                X = udata.generate_two_circles(n)
                 G, W = uot.random_graph_similarity(X, rho = rho, mode='Gaussian',
                                                    bandwidth=sigma, return_expected=True)
                 W /= rho
                 Khat = torch.tensor(nx.to_numpy_array(G), device=device)[:n, n:]/rho
-                Phat, _, _, c = uot.sinkhorn_dual(None, alpha, beta,
+                Phat, _, _, c = uot.sinkhorn_dual(None,
                                                   epsilon=epsilon, n_iter=1000,
                                                   device=device, K=Khat,
                                                   eta=eta, dolog=False)
