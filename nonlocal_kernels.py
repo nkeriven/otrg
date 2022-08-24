@@ -3,62 +3,47 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import torch
-from scipy.spatial.distance import cdist
+#from scipy.spatial.distance import cdist
 
-import utils_ot as uot
+import utils.ot as uot
+import utils.plot as uplt
+import utils.data as udata
 
 # init
 plt.close('all')
 np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-# plot parameters
-fontsize = 20
-figsize = (6,4)
-rc_fonts = {"text.usetex": True, "font.size": 14}
-plt.rcParams.update(rc_fonts)
-
 # which experiment to perform
 illustrate_usvt = True # single usvt illustration
-stability_gamma = False # stability curve, quite long
-conv_curves = False # convergence curve, quite long
+stability_gamma = True # stability curve, quite long
+conv_curves = True # convergence curve, quite long
 
 # do I save the figures?
-savefig = True
+savefig = False
 
-n_test = 3 # number of experiments to average over
+n_test = 10 # number of experiments to average over
 
-#%% data distrib
-def generate_two_circles(n, noise=.1):
-    X = np.random.randn(3*n,2)
-    # inner circle
-    X[:n,:] = .6*X[:n,:]*((1+noise*np.random.randn(n))/(np.sqrt((X[:n,:]**2).sum(axis=1))))[:,None]
-    # outer circle
-    X[n:,:] = X[n:,:]/(np.sqrt((X[n:,:]**2).sum(axis=1)))[:,None]
-    return X
 
 #%% UVST estimator example
 if illustrate_usvt:
     n = 80
-    alpha = torch.ones(n, device=device, dtype=torch.float64)/n
-    beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
     epsilon, sigma = .01, .17
     rho = 1
 
     # generate data and graph
-    X = generate_two_circles(n)
-    G, W = uot.random_graph_similarity(X, rho = rho, mode='Gaussian',
+    X = udata.generate_two_circles(n)
+    G, W = udata.random_graph_similarity(X, rho = rho, mode='Gaussian',
                                        bandwidth=sigma, return_expected=True)
     W /= rho
 
     # sinkhorn
     C = torch.tensor(np.ones((n, 2*n)) - W[:n, n:], device=device)
-    P, _, _, _ = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
+    P, _, _, _ = uot.sinkhorn_dual(C, epsilon=epsilon, device=device)
 
     # USVT: select best among several threshold value (just here)
     A = torch.tensor(nx.to_numpy_array(G), device=device)
-    best_loss = np.Inf
-    best_W = None
+    best_loss, best_W = np.Inf, None
     for gamma in np.linspace(.1, .7, 25):
         What = uot.USVT(A, gamma=gamma, rho=rho, verbose=False)
         l = np.linalg.norm(What.cpu().numpy() - W, ord='fro')/n
@@ -68,99 +53,80 @@ if illustrate_usvt:
 
     # sinkhorn on USVT
     Chat = torch.ones((n, 2*n), device=device) - best_W[:n, n:]
-    Phat, _, _, _ = uot.sinkhorn_dual(Chat, alpha, beta, epsilon=epsilon, device=device)
+    Phat, _, _, _ = uot.sinkhorn_dual(Chat, epsilon=epsilon, device=device)
 
-    # plot USVT
+    ##### plot USVT
     node_size = 40
-    figsize = (5,5)
-    plt.figure(figsize=figsize)
-    uot.my_draw(G, width=.5, pos=X,
+    plt.figure(figsize=(5,5))
+    uplt.my_draw(G, width=.5, pos=X,
                 node_size=node_size, edge_color='k', node_color='r')
     if savefig:
         plt.savefig('nonlocal_RG.png', bbox_inches=0)
+
     G_c = nx.complete_graph(3*n)
-    plt.figure(figsize=figsize)
-    uot.my_draw(G_c, width=[W[i,j] for (i,j) in G_c.edges], pos=X,
+    plt.figure(figsize=(5,5))
+    uplt.my_draw(G_c, width=[W[i,j] for (i,j) in G_c.edges], pos=X,
                 node_size=node_size, edge_color='k', node_color='r')
     if savefig:
         plt.savefig('nonlocal_truekernel.png', bbox_inches=0)
-    plt.figure(figsize=figsize)
+
+    plt.figure(figsize=(5,5))
     best_W = best_W.cpu().numpy()
-    uot.my_draw(G_c, width=[best_W[i,j] for (i,j) in G_c.edges], pos=X,
+    uplt.my_draw(G_c, width=[best_W[i,j] for (i,j) in G_c.edges], pos=X,
                 node_size=node_size, edge_color='k', node_color='r')
     if savefig:
         plt.savefig('nonlocal_USVT.png', bbox_inches=0)
 
     # plot sinkhorn
-    P = P.cpu().numpy()
-    Phat = Phat.cpu().numpy()
-    def rect(P,n):
-        PP = np.zeros((3*n,3*n))
-        PP[:n, n:] = P
-        PP[n:, :n] = P.T
-        return PP
-    PP = rect(P,n)/P.max()
-    PPhat = rect(Phat,n)/Phat.max()
-    c = .7*np.ones(3*n)
-    c[:n] = 0
+    PP, c = uplt.expand_plan(P.cpu().numpy(), n, 3*n)
+    PPhat, _ = uplt.expand_plan(Phat.cpu().numpy(),n,3*n)
 
-    plt.figure(figsize=figsize)
-    uot.my_draw(G_c, width=[PP[i,j] for (i,j) in G_c.edges],
+    plt.figure(figsize=(5,5))
+    uplt.my_draw(G_c, width=[PP[i,j] for (i,j) in G_c.edges],
                 pos=X, node_color=c, vmax=1,
                 node_size=node_size, edge_color='k')
     if savefig:
         plt.savefig('nonlocal_trueOTplan.png', bbox_inches=0)
-    plt.figure(figsize=figsize)
-    uot.my_draw(G_c, width=[PPhat[i,j] for (i,j) in G_c.edges],
+    plt.figure(figsize=(5,5))
+    uplt.my_draw(G_c, width=[PPhat[i,j] for (i,j) in G_c.edges],
                 pos=X, node_color=c, vmax=1,
                 node_size=node_size, edge_color='k')
     if savefig:
         plt.savefig('nonlocal_USVTplan.png', bbox_inches=0)
 
+
 #%% stability wrt gamma
 
 if stability_gamma:
+    fontsize = 22
+    figsize = (6,5)
+    rc_fonts = {"text.usetex": True, "font.size": 14}
+    plt.rcParams.update(rc_fonts)
     epsilon, sigma = .1, .2
     gammas = np.linspace(.2, .7, 10)
     ns = [100, 250, 500]
     output = np.zeros((len(gammas), 3, 2, n_test)) # n, rho, value, n_test
 
-    # compute approximate true value: average over many realizations with true W
-    true_cost = 0
-    N = max(ns)
-    alpha = torch.ones(N, device=device, dtype=torch.float64)/N
-    beta = torch.ones(2*N, device=device, dtype=torch.float64)/(2*N)
-    for t_ in range(n_test):
-        X = generate_two_circles(N)
-        G, W = uot.random_graph_similarity(X, rho = 1, mode='Gaussian',
-                                           bandwidth=sigma, return_expected=True)
-        C = torch.tensor(np.ones((N, 2*N)) - W[:N, N:], device=device)
-        P, _, _, tc = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
-        true_cost += tc.item()/n_test
-
     for g_, gamma in enumerate(gammas):
         for t_ in range(n_test):
             for n_, n in enumerate(ns):
-                print(f'Gamma value {g_+1}/{len(gammas)}, Num test {t_+1}/{n_test}, Graph size {n_+1}/{len(ns)}')
+                print(f'Gamma value {g_+1}/{len(gammas)}, \
+                      Num test {t_+1}/{n_test}, Graph size {n_+1}/{len(ns)}')
 
-                alpha = torch.ones(n, device=device, dtype=torch.float64)/n
-                beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
-                X = generate_two_circles(n)
-                G, W = uot.random_graph_similarity(X, rho = 1, mode='Gaussian',
-                                                   bandwidth=sigma, return_expected=True)
+                X = udata.generate_two_circles(n)
+                G, W = udata.random_graph_similarity(X, rho = 1, mode='Gaussian',
+                                                     bandwidth=sigma, return_expected=True)
                 C = torch.tensor(np.ones((n, 2*n)) - W[:n, n:], device=device)
-                P, _, _, tc = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
+                P, _, _, tc = uot.sinkhorn_dual(C, epsilon=epsilon, device=device)
 
-                alpha = torch.ones(n, device=device, dtype=torch.float64)/n
-                beta = torch.ones(2*n, device=device, dtype=torch.float64)/(2*n)
-                X = generate_two_circles(n)
-                G, W = uot.random_graph_similarity(X, rho = 1, mode='Gaussian',
+                X = udata.generate_two_circles(n)
+                G, W = udata.random_graph_similarity(X, rho = 1, mode='Gaussian',
                                                    bandwidth=sigma, return_expected=True)
                 A = torch.tensor(nx.to_numpy_array(G), device=device)
                 What = uot.USVT(A, gamma=gamma, rho=1)
                 Chat = torch.ones((n, 2*n), device=device) - What[:n, n:]
-                Phat, _, _, c = uot.sinkhorn_dual(Chat, alpha, beta,
-                                                  epsilon=epsilon, n_iter=1000,
+                Phat, _, _, c = uot.sinkhorn_dual(Chat,
+                                                  epsilon=epsilon,
                                                   device=device)
                 output[g_, n_, 0, t_] += np.abs(tc-c.item())/tc
                 output[g_, n_, 1, t_] += np.linalg.norm(W - What.cpu().numpy(),

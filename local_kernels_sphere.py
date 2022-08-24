@@ -2,7 +2,9 @@
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-import utils_ot as uot
+import utils.ot as uot
+import utils.data as udata
+import utils.plot as uplt
 import torch
 
 # init
@@ -22,16 +24,16 @@ illustration_conv_SP = True
 # Illustrate a transport plan on the sphere
 illustration_OT_sphere = True
 # Compute the convergence curves. Can be quite long
-curve_conv_wrt_n = False
+curve_conv_wrt_n = True
 
-n_test = 5 # number of experiments to average over
+n_test = 10 # number of experiments to average over
 savefig = False # do I save the figures?
 
 #%% Fig 4.1 (top)
 
 if illustration_conv_SP:
     for n in [200, 500, 6000]:
-        X = uot.generate_sphere(n)
+        X = udata.generate_sphere(n)
 
         # two fixed points
         X[-2,:] = [1,0,0]
@@ -46,17 +48,17 @@ if illustration_conv_SP:
         Y = Y/np.sqrt((Y**2).sum(axis=1))[:,None]
         lG = nx.path_graph(N)
 
-        G, h = uot.connected_eps_graph(X)
+        G, h = udata.connected_eps_graph(X)
 
         p = nx.algorithms.shortest_path(G, source=n-2, target=n-1)
 
         fig = plt.figure(figsize=(10,10))
         ax = fig.add_subplot(projection='3d')
-        uot.my_draw3d(G, pos=X, edge_color='k',width=.5*np.sqrt(200/n),
+        uplt.my_draw3d(G, pos=X, edge_color='k',width=.5*np.sqrt(200/n),
                       node_size=0, alpha_edge=.3, alpha=.5, ax=ax)
-        uot.my_draw3d(G.subgraph(p), pos=X*1.02, edge_color='r',width=5, node_color='r',
+        uplt.my_draw3d(G.subgraph(p), pos=X*1.02, edge_color='r',width=5, node_color='r',
                       alpha_edge=1, node_size=50, alpha=1, ax=ax)
-        uot.my_draw3d(lG, pos=Y*1.01, edge_color='g',width=5, node_color='g',
+        uplt.my_draw3d(lG, pos=Y*1.01, edge_color='g',width=5, node_color='g',
                       alpha_edge=1, node_size=5, alpha=1, ax=ax)
         ax=plt.gca()
         ax.view_init(azim=66, elev=30)
@@ -69,34 +71,34 @@ if illustration_OT_sphere or curve_conv_wrt_n:
     epsilon, bw = .01, .2
     # points
     dist_size = 50
-    Y1 = uot.normalize(.4*(2*np.random.rand(dist_size, 3)-1) + np.array([1,0,0])[None,:])
+    Y1 = udata.normalize(.4*(2*np.random.rand(dist_size, 3)-1) + np.array([1,0,0])[None,:])
     Y2 = np.zeros((dist_size, 3))
-    Y2[:, 1:3] = uot.normalize(2*np.random.rand(dist_size, 2)-1)
-    Y2 = uot.normalize(Y2 + np.array([.5,0,0])[None,:])
-    # unif distrib
-    alpha = torch.ones(dist_size, device=device, dtype=torch.float64)/dist_size
-    beta = torch.ones(dist_size, device=device, dtype=torch.float64)/dist_size
+    Y2[:, 1:3] = udata.normalize(2*np.random.rand(dist_size, 2)-1)
+    Y2 = udata.normalize(Y2 + np.array([.5,0,0])[None,:])
+
     # compute true OT cost
     C = torch.tensor(np.arccos(Y1 @ Y2.T), device=device)
-    P, _, _, true_cost = uot.sinkhorn_dual(C, alpha, beta, epsilon=epsilon, device=device)
+    P, _, _, true_cost = uot.sinkhorn_dual(C, epsilon=epsilon, device=device)
     true_cost = true_cost.item()
 
 #%% Illustration of OT plan
 
+
+
 if illustration_OT_sphere:
     ndraw=1000
-    X = uot.generate_sphere(ndraw)
+    X = udata.generate_sphere(ndraw)
     h = ndraw**(-1/4)
-    G, h = uot.connected_eps_graph(X)
+    G, h = udata.connected_eps_graph(X)
 
     fig = plt.figure(figsize=(10,10))
     ax = fig.add_subplot(projection='3d')
-    uot.my_draw3d(G, pos=X, edge_color='k',width=.2,
+    uplt.my_draw3d(G, pos=X, edge_color='k',width=.2,
                   node_size=0, alpha_edge=.3, alpha=.5, ax=ax)
 
-    PP, c = uot.rect(P.cpu().numpy(), dist_size, 2*dist_size)
+    PP, c = uplt.expand_plan(P.cpu().numpy(), dist_size, 2*dist_size)
     G_c = nx.complete_graph(2*dist_size)
-    uot.my_draw3d(G_c, width=[PP[i,j] for (i,j) in G_c.edges],
+    uplt.my_draw3d(G_c, width=[PP[i,j] for (i,j) in G_c.edges],
                   pos=np.concatenate((Y1,Y2), axis=0), node_color=c, vmax=1,
                   node_size=50, edge_color='k', ax=ax)
     ax=plt.gca()
@@ -112,20 +114,17 @@ if curve_conv_wrt_n:
     for n_, n in enumerate(ns):
         for t_ in range(n_test):
             print(f'Graph size {n_+1}/{len(ns)}, num test {t_+1}/{n_test}')
-            X = uot.generate_sphere(n)
+            X = udata.generate_sphere(n)
             X = np.concatenate((Y1,Y2,X), axis=0)
-            eps = n**(-1/3)
-            G = uot.random_graph_similarity(X, mode='epsilon_graph', bandwidth=eps)
-            while not nx.is_connected(G):
-                eps *= 1.05
-                G = uot.random_graph_similarity(X, mode='epsilon_graph', bandwidth=eps)
+
+            G, eps = udata.connected_eps_graph(X)
 
             Chat = np.zeros((dist_size, dist_size))
             for i in range(dist_size):
                 for j in range(dist_size):
                     Chat[i,j] = eps*len(nx.algorithms.shortest_path(G, source=i, target= dist_size+j))
             Chat = torch.tensor(Chat, device=device)
-            Phat, _, _, c = uot.sinkhorn_dual(Chat, alpha, beta,
+            Phat, _, _, c = uot.sinkhorn_dual(Chat,
                                               epsilon=epsilon, n_iter=1000,
                                               device=device)
             output[n_, 0, t_] += np.abs(true_cost-c.item())/true_cost
