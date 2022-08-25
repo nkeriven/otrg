@@ -32,10 +32,10 @@ plt.rcParams.update(rc_fonts)
 # illustrate the OT plan for increasing n
 illustrate_conv_SP = True
 # create a gif animating the OT plan (a bit long)
-illustrate_gif_OT_plan = illustrate_conv_SP and False
+illustrate_gif_OT_plan = illustrate_conv_SP and True
 
 # do I save the figures?
-savefig = False
+savefig = True
 
 n_test = 10 # number of experiments to average over
 

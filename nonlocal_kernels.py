@@ -97,11 +97,13 @@ if illustrate_usvt:
 
 #%% stability wrt gamma
 
+fontsize = 22
+figsize = (6,5)
+rc_fonts = {"text.usetex": True, "font.size": 14}
+plt.rcParams.update(rc_fonts)
+
 if stability_gamma:
-    fontsize = 22
-    figsize = (6,5)
-    rc_fonts = {"text.usetex": True, "font.size": 14}
-    plt.rcParams.update(rc_fonts)
+
     epsilon, sigma = .1, .2
     gammas = np.linspace(.2, .7, 10)
     ns = [100, 250, 500]
@@ -205,11 +207,11 @@ if conv_curves:
             for r_, rho in enumerate([1, 1/n**(1/6), 1/n**(1/3)]):
                 print(f'Graph size {n_+1}/{len(ns)}, Num test {t_+1}/{n_test}, Sparsity {r_+1}/3')
                 X = udata.generate_two_circles(n)
-                G, W = uot.random_graph_similarity(X, rho = rho, mode='Gaussian',
+                G, W = udata.random_graph_similarity(X, rho = rho, mode='Gaussian',
                                                    bandwidth=sigma, return_expected=True)
                 W /= rho
                 Khat = torch.tensor(nx.to_numpy_array(G), device=device)[:n, n:]/rho
-                Phat, _, _, c = uot.sinkhorn_dual(None,
+                Phat, _, _, c = uot.sinkhorn_dual(Khat,
                                                   epsilon=epsilon, n_iter=1000,
                                                   device=device, K=Khat,
                                                   eta=eta, dolog=False)

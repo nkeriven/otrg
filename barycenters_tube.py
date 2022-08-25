@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 25 10:21:22 2021
-
-@author: nicol
-"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,6 +15,9 @@ np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 dogif = True
+savefig = True and not dogif
+stepsize_v = 3 # vertical discretization
+stepsize_h = 4 # horizontal discretization
 
 #%% plot
 
@@ -31,14 +29,11 @@ colors = np.array([[1,0,0],
 n = 1000
 epsilon = .025
 nn = 10
-stepsize = 10
 X = udata.tube_data(n)
 dist = dict()
 for s in range(4):
     X[nn*s:nn*(s+1), :] = udata.deform_data(np.array([(-1)**s*0.8, (-1)**(int(s/2))*0.8])[None,:]
                                             + .1*np.random.randn(nn,2))
-    # dist[s] = torch.zeros(n, device=device, dtype=torch.float64)
-    # dist[s][nn*s:nn*(s+1)] = torch.rand(nn)
     dist[s] = torch.rand(nn, device=device, dtype=torch.float64)
     dist[s] /= dist[s].sum()
 
@@ -68,11 +63,11 @@ def plot_(G, X, n, dist, bary, weights, colors):
 
 
 frames=[]
-for (i,ti) in enumerate(np.linspace(0,1,int(stepsize/1.5))):
-    for (j,tj) in enumerate(np.linspace(0,1,stepsize)):
-        print(i,j)
+for (i,ti) in enumerate(np.linspace(0,1,stepsize_v)):
+    for (j,tj) in enumerate(np.linspace(0,1,stepsize_h)):
+        print(f'{i+1}/{stepsize_v}, {j+1}/{stepsize_h}')
         if i%2 == 0:
-            jj = stepsize-1-j
+            jj = stepsize_h-1-j
             tjj = 1-tj
         else:
             jj, tjj = j, tj
@@ -81,16 +76,17 @@ for (i,ti) in enumerate(np.linspace(0,1,int(stepsize/1.5))):
                             (1-ti)*tjj,
                             (1-ti)*(1-tjj)])
         weights /= weights.sum()
-        print(weights)
         print('Sinkhorn...')
         bary = uot.barycenters(Cs, dist, weights, device=device, epsilon=epsilon,
                                n_iter=1000, same_space=False)
         if dogif:
             frames.append(plot_(G, X, n, dist, bary, weights, colors))
         else:
-            plot_(G, X, n, dist, bary, weights, colors)
-        # ax = plt.subplot(size,size,size*i+j+1)
+            plot_.__wrapped__(G, X, n, dist, bary, weights, colors)
+            if savefig:
+                plt.savefig(f'fig/tube_barycenters{i}{j}.png',
+                            bbox_inches=0)
 
 if dogif:
-    gif.save(frames, 'fig/bary_tube.gif', duration=120)
+    gif.save(frames, 'fig/bary_tube.gif', duration=int(3000/(stepsize_v*stepsize_h)))
 

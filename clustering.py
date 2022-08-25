@@ -15,13 +15,11 @@ np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 # do I save the figures?
-savefig = False
+savefig = True
 
 n_test = 10 # number of experiments to average over
 
 #%% data distrib
-
-
 
 def OT_USVT_dist(G, node_list, node_listC=None, epsilon=.01, gamma=.5, Wusvt=None):
     n = len(G)
@@ -108,22 +106,19 @@ for data_ in range(2):
     plt.figure(figsize=(5,5))
     plot_comm(G,X,trueC)
     if savefig:
-        plt.tight_layout()
-        plt.savefig(f'comm_graph_{type_data[data_]}_0.png',
+        plt.savefig(f'fig/comm_graph_{type_data[data_]}_0.png',
                     bbox_inches=0)
 
     plt.figure(figsize=(5,5))
     plot_comm(G,X,noisy_community(trueC, p=.1))
     if savefig:
-        plt.tight_layout()
-        plt.savefig(f'comm_graph_{type_data[data_]}_1.png',
+        plt.savefig(f'fig/comm_graph_{type_data[data_]}_1.png',
                     bbox_inches=0)
 
     plt.figure(figsize=(5,5))
     plot_comm(G,X,noisy_community(trueC, p=.5))
     if savefig:
-        plt.tight_layout()
-        plt.savefig(f'comm_graph_{type_data[data_]}_2.png',
+        plt.savefig(f'fig/comm_graph_{type_data[data_]}_2.png',
                     bbox_inches=0)
 
 outputs_ = np.mean(outputs, axis=1)

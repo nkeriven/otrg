@@ -27,7 +27,7 @@ illustration_OT_sphere = True
 curve_conv_wrt_n = True
 
 n_test = 10 # number of experiments to average over
-savefig = False # do I save the figures?
+savefig = True # do I save the figures?
 
 #%% Fig 4.1 (top)
 
@@ -63,7 +63,7 @@ if illustration_conv_SP:
         ax=plt.gca()
         ax.view_init(azim=66, elev=30)
         if savefig:
-            plt.savefig(f'shortest_path_sphere_{n}.png', bbox_inches=0)
+            plt.savefig(f'fig/shortest_path_sphere_{n}.png', bbox_inches=0)
 
 #%% generate data for transport plan and convergence
 
@@ -82,7 +82,6 @@ if illustration_OT_sphere or curve_conv_wrt_n:
     true_cost = true_cost.item()
 
 #%% Illustration of OT plan
-
 
 
 if illustration_OT_sphere:
@@ -104,7 +103,7 @@ if illustration_OT_sphere:
     ax=plt.gca()
     ax.view_init(azim=22, elev=24)
     if savefig:
-        plt.savefig('OT_plan_sphere.png', bbox_inches=0)
+        plt.savefig('fig/OT_plan_sphere.png', bbox_inches=0)
 
 #%% convergence wrt n
 
@@ -140,4 +139,4 @@ if curve_conv_wrt_n:
     plt.legend([r'OT error', r'$\|\hat{C} - C\|_\infty$',
                 r'$KL(P^C, P^{\hat{C}})$'], fontsize=fontsize)
     plt.tight_layout()
-    plt.savefig('shortest.pdf', bbox_inches=0)
+    plt.savefig('fig/shortest.pdf', bbox_inches=0)
