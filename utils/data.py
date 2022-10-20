@@ -14,6 +14,7 @@ from numba import jit
 from scipy.spatial.distance import pdist, squareform
 from scipy import stats
 from scipy.integrate import quad
+import math
 
 #%% random graphs
 
@@ -97,7 +98,7 @@ def connected_eps_graph(X, h=None):
 def pdf(x, symmetric=False):
     return (x**2+.2)/1.2
 
-class my_distribution(stats.rv_continuous):
+class tube_distribution(stats.rv_continuous):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -108,17 +109,18 @@ class my_distribution(stats.rv_continuous):
         # scale PDF so that it integrates to 1 in range a..b
         return pdf(x) / self.scale
 
-distribution = my_distribution(a=-1, b=1)
-
 def deform_data(X):
     Y = X.copy()
     Y[:,1] *= (Y[:,0]**2+.2)/1.2
     return Y
 
 def tube_data(n):
+    distribution = tube_distribution(a=-1, b=1)
     X = 2*np.random.rand(n,2)-1
     X[:,0] = distribution.rvs(size=n)
     return deform_data(X)
+
+########
 
 def generate_two_circles(n, noise=.1, noise_out=0):
     X = np.random.randn(3*n,2)
@@ -128,20 +130,78 @@ def generate_two_circles(n, noise=.1, noise_out=0):
     X[n:,:] = X[n:,:]*((1+noise_out*np.random.randn(2*n))/(np.sqrt((X[n:,:]**2).sum(axis=1))))[:,None]
     return X
 
+#######
+
 def GMM(n, shift=1):
     X = np.zeros((3*n,2))
     X[:n,:] = np.random.randn(n,2)+np.array([shift,0])[None,:]
     X[n:,:] = 1.5*np.random.randn(2*n,2)+np.array([-shift,0])[None,:]
     return X
 
+#######
+
+def sphere(n, half=False, mode='uniform'):
+    """Non-uniform distrib on the sphere"""
+    if mode == 'uniform':
+        X = normalize(np.random.randn(n,3))
+    elif mode == 'non-uniform':
+        X = normalize(np.random.randn(n,3)+np.array([.3,0,0])[None,:])
+    elif mode == 'fibonacci':
+        X = fibonacci_sphere(n)
+    elif mode == 'hybrid':
+        X1 = fibonacci_sphere(int(n/2))
+        X2 = normalize(np.random.randn(int(n/2),3))
+        X = np.concatenate((X1,X2), axis=0)
+
+    if half:
+        X = X[[i for i in range(X.shape[0]) if X[i,2]>0],:]
+
+    return X
+
+def sphere_distrib(X, mode='cross', scale=.2, c=np.array([0,0,1])):
+    """ Define various distributions on the sphere"""
+    c = c/np.linalg.norm(c)
+    n = X.shape[0]
+    dist = np.zeros(n)
+    if mode == 'cross':
+        f = lambda x:(x[0]<scale and x[0]>-scale) or (x[1]<scale and x[1]>-scale)
+    elif mode == 'circle':
+        f = lambda x: np.linalg.norm(x-c)<scale
+    elif mode == 'outer_circle':
+        f = lambda x: np.linalg.norm(x-c)>scale
+    elif mode == 'square':
+        f = lambda x: np.linalg.norm(x-c, ord=np.inf)<scale
+
+    for i in range(n):
+        if f(X[i,:]):
+            dist[i]=1
+    dist/= dist.sum()
+    return dist
+
+#%% utils
+
 def normalize(X):
     X = X/np.sqrt((X**2).sum(axis=1))[:,None]
     return X
 
-def generate_sphere(n):
-    """Non-uniform distrib on the sphere"""
-    X = normalize(np.random.randn(n,3)+np.array([.3,0,0])[None,:])
-    return X
+def fibonacci_sphere(samples=1000):
+
+    points = np.zeros((samples, 3))
+    phi = math.pi * (3. - math.sqrt(5.))  # golden angle in radians
+
+    for i in range(samples):
+        y = 1 - (i / float(samples - 1)) * 2  # y goes from 1 to -1
+        radius = math.sqrt(1 - y * y)  # radius at y
+
+        theta = phi * i  # golden angle increment
+
+        x = math.cos(theta) * radius
+        z = math.sin(theta) * radius
+
+        # points.append((x, y, z))
+        points[i,:] = [x,y,z]
+
+    return points
 
 #%% mesh utils
 
