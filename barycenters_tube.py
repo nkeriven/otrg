@@ -8,15 +8,11 @@ import utils.ot as uot
 import utils.data as udata
 import utils.plot as uplt
 
-import time
-
 plt.close('all')
 np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 savefig = True
-stepsize_v = 3 # vertical discretization
-stepsize_h = 4 # horizontal discretization
 
 ###
 
@@ -93,7 +89,7 @@ for _,n in enumerate(ns):
     bary, Ps = uot.barycenters(Cs, dist, weights, device=device, epsilon=0.02,
                                n_iter=1000, same_space=False)
 
-    # draw graph
+    ###### draw graph
     plt.figure(figsize=(10,10))
     uplt.my_draw(G, pos=X, edge_color='k',width=80/X.shape[0],
                  node_size=0, alpha=.5)

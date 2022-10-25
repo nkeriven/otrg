@@ -13,28 +13,25 @@ import gif
 plt.close('all')
 np.random.seed(0)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-dogif = True
-savefig = True and not dogif
-stepsize_v = 3 # vertical discretization
-stepsize_h = 4 # horizontal discretization
+figpath = 'fig/'
+savefig = True
+stepsize_v = 8 # vertical discretization
+stepsize_h = 10 # horizontal discretization
 
 #%% plot
 
-colors = np.array([[1,0,0],
-                   [0,.8,0],
-                   [0,0,1],
-                   [.9, 0.5, 0]])
-
-n = 1000
+colors = uplt.mycolor()
+n = 2000
 epsilon = .025
-nn = 10
+ndist = 20
 X = udata.tube_data(n)
+
+# distributions
 dist = dict()
 for s in range(4):
-    X[nn*s:nn*(s+1), :] = udata.deform_data(np.array([(-1)**s*0.8, (-1)**(int(s/2))*0.8])[None,:]
-                                            + .1*np.random.randn(nn,2))
-    dist[s] = torch.rand(nn, device=device, dtype=torch.float64)
+    X[ndist*s:ndist*(s+1), :] = udata.deform_data(np.array([(-1)**s*0.8, (-1)**(int(s/2))*0.6])[None,:]
+                                                  + .2*(2*np.random.rand(ndist,2)-1))
+    dist[s] = torch.rand(ndist, device=device, dtype=torch.float64)
     dist[s] /= dist[s].sum()
 
 # graph
@@ -46,20 +43,28 @@ C, SP = uot.SP_matrix(G, device=device, h=h)
 
 Cs = dict()
 for s in range(4):
-    Cs[s] = C[:,nn*s:nn*(s+1)]**2
+    Cs[s] = C[4*ndist:,ndist*s:ndist*(s+1)]**2
 
 @gif.frame
-def plot_(G, X, n, dist, bary, weights, colors):
-    fig = plt.figure(figsize=(10,10))
-    ax=fig.add_subplot()
-    uplt.my_draw(G, pos=X, edge_color='k',width=80/n,
-              node_size=0, alpha=.5, ax=ax)
+def plot_(G, X, n, Ps, dist, bary, weights):
+    plt.figure(figsize=(10,10))
+    uplt.my_draw(G, pos=X, edge_color='k',width=80/X.shape[0],
+                 node_size=0, alpha=.5)
+    # draw transport plan
     for s in range(4):
-        plt.scatter(X[s*nn:(s+1)*nn,0], X[s*nn:(s+1)*nn,1],
-                    color=colors[s], s=[1000*dist[s][z].item() for z in range(nn)], label=f'{weights[s]:.2f}')
-
-    plt.scatter(X[:,0], X[:,1], color=colors.T@weights, s=[1000*bary[z].item() for z in range(n)])
-    plt.legend()
+        e_weights = uplt.compute_edge_weights_SP(G, Ps[s], SP, X.shape[0],
+                                                 indi = np.arange(4*ndist,n),
+                                                 indj = np.arange(ndist*s,ndist*(s+1)),
+                                                 scale = 80)
+        uplt.my_draw(G, pos=X, edge_color=colors[s], width=weights[s]*np.array(e_weights),
+                     node_size=0, alpha=1)
+        plt.scatter(X[s*ndist:(s+1)*ndist,0], X[s*ndist:(s+1)*ndist,1],
+                    color=colors[s], s=[10000*dist[s][z].item() for z in range(ndist)],
+                    label=f'{weights[s]:.2f}', edgecolors= 'k', linewidths=1)
+    # draw barycenter weights
+    plt.scatter(X[4*ndist:,0], X[4*ndist:,1], color=colors.T@weights,
+                s=[10000*bary[z].item() for z in range(len(bary))], edgecolors= 'k', linewidths=1)
+    plt.legend(fontsize=20)
 
 
 frames=[]
@@ -77,16 +82,11 @@ for (i,ti) in enumerate(np.linspace(0,1,stepsize_v)):
                             (1-ti)*(1-tjj)])
         weights /= weights.sum()
         print('Sinkhorn...')
-        bary = uot.barycenters(Cs, dist, weights, device=device, epsilon=epsilon,
-                               n_iter=1000, same_space=False)
-        if dogif:
-            frames.append(plot_(G, X, n, dist, bary, weights, colors))
-        else:
-            plot_.__wrapped__(G, X, n, dist, bary, weights, colors)
-            if savefig:
-                plt.savefig(f'fig/tube_barycenters{i}{j}.png',
-                            bbox_inches=0)
+        bary, Ps = uot.barycenters(Cs, dist, weights, device=device, epsilon=epsilon,
+                                   n_iter=300, same_space=False)
+        if savefig:
+            frames.append(plot_(G, X, n, Ps, dist, bary, weights))
 
-if dogif:
-    gif.save(frames, 'fig/bary_tube.gif', duration=int(3000/(stepsize_v*stepsize_h)))
+if savefig:
+    gif.save(frames, figpath + 'bary_tube.gif', duration=int(10000/(stepsize_v*stepsize_h)))
 

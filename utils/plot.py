@@ -5,6 +5,7 @@ from utils.nx_pylab3d import draw3d
 import numpy as np
 import networkx as nx
 from matplotlib.colors import ListedColormap
+from matplotlib import pyplot as plt
 import pyvista as pv
 
 ### color
@@ -94,3 +95,4 @@ def pvplot(X, surf, dist, filename=None, log_scale=True,
         pl.show(screenshot=filename)
     else:
         pl.show()
+        
