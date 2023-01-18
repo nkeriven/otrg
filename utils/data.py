@@ -86,7 +86,7 @@ def generate_edges_epsilon_graph(X,epsilon,alpha):
 def connected_eps_graph(X, h=None):
     n = X.shape[0]
     if h is None:
-        h = 1.3*n**(-1/3)
+        h = 1.3*n**(-1/X.shape[1])/2
     G = random_graph_similarity(X, mode='epsilon_graph', bandwidth=h)
     while not nx.is_connected(G):
         h *= 1.05

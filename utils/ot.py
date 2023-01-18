@@ -48,7 +48,7 @@ def SP_matrix(G, pos=None, indices=None, device='cpu', h=None):
             if indices is None:
                 p[ii][jj] = SP[ii][jj]
             else:
-                p[ii][jj] = nx.shortest_path(G, source=ii, target=jj)
+                p[ii][jj] = nx.shortest_path(G, source=ii, target=jj, weight='dist')
             length = 0
             for v in range(len(p[ii][jj])-1):
                 length += G.edges[(p[ii][jj][v], p[ii][jj][v+1])]['dist']
